@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SummitPoint Print Agent</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: #1e293b; border-radius: 12px; padding: 20px; }
+  .card h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 8px; }
+  .card .value { font-size: 2rem; font-weight: 700; }
+  .printer-card { display: flex; align-items: center; gap: 12px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .dot.green { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+  .dot.red { background: #ef4444; box-shadow: 0 0 8px #ef444488; }
+  .printer-info { font-size: 0.85rem; }
+  .printer-info .name { font-weight: 600; color: #f1f5f9; }
+  .printer-info .detail { color: #64748b; font-size: 0.75rem; }
+  .actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  button { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+  button:hover { background: #2563eb; }
+  button.secondary { background: #475569; }
+  button.secondary:hover { background: #64748b; }
+  button.danger { background: #ef4444; }
+  button.danger:hover { background: #dc2626; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #334155; font-size: 0.85rem; }
+  th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
+  .status { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .status.QUEUED { background: #fbbf2433; color: #fbbf24; }
+  .status.PRINTING { background: #3b82f633; color: #60a5fa; }
+  .status.DONE { background: #22c55e33; color: #22c55e; }
+  .status.FAILED { background: #ef444433; color: #ef4444; }
+  .search { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 8px 14px; border-radius: 8px; width: 250px; font-size: 0.85rem; margin-bottom: 16px; }
+  .search:focus { outline: none; border-color: #3b82f6; }
+  .progress { background: #334155; border-radius: 8px; height: 8px; margin-top: 8px; overflow: hidden; }
+  .progress-bar { background: linear-gradient(90deg, #3b82f6, #22c55e); height: 100%; transition: width 0.3s; border-radius: 8px; }
+</style>
+</head>
+<body>
+  <h1>SummitPoint Print Agent</h1>
+  <p class="subtitle">Uptime: <span id="uptime">--</span>s</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>HP Printer</h3>
+      <div class="printer-card">
+        <div class="dot" id="hp-dot"></div>
+        <div class="printer-info">
+          <div class="name" id="hp-name">--</div>
+          <div class="detail" id="hp-detail">--</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Honeywell Printer</h3>
+      <div class="printer-card">
+        <div class="dot" id="hw-dot"></div>
+        <div class="printer-info">
+          <div class="name">Honeywell PC310T</div>
+          <div class="detail" id="hw-detail">--</div>
+        </div>
+      </div>
+    </div>
+    <div class="card"><h3>Pending</h3><div class="value" id="pending" style="color:#fbbf24">0</div></div>
+    <div class="card"><h3>Printing</h3><div class="value" id="processing" style="color:#60a5fa">0</div></div>
+    <div class="card"><h3>Completed</h3><div class="value" id="completed" style="color:#22c55e">0</div></div>
+    <div class="card"><h3>Failed</h3><div class="value" id="failed" style="color:#ef4444">0</div></div>
+  </div>
+
+  <div id="bulk-progress" style="display:none" class="card" style="margin-bottom:16px">
+    <h3>Bulk Progress</h3>
+    <div class="value" id="bulk-text">0 / 0</div>
+    <div class="progress"><div class="progress-bar" id="bulk-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="actions">
+    <select id="printer-select" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;padding:8px 12px;border-radius:8px;font-size:0.85rem;">
+      <option value="HP">HP Printer</option>
+      <option value="HONEYWELL">Honeywell PC310T</option>
+    </select>
+    <button onclick="testPrint()">Test Print</button>
+    <button class="secondary" onclick="refresh()">Refresh</button>
+    <button class="danger" onclick="clearCompleted()">Clear Completed</button>
+  </div>
+
+  <input type="text" class="search" id="search" placeholder="Search by name..." oninput="filterJobs()">
+
+  <div class="card" style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Name</th><th>Printer</th><th>Status</th><th>Time</th><th>Action</th></tr></thead>
+      <tbody id="jobs"></tbody>
+    </table>
+  </div>
+
+<script>
+let allJobs = [];
+
+async function fetchHealth() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    document.getElementById('uptime').textContent = d.uptime;
+    document.getElementById('hp-dot').className = 'dot ' + (d.printers.hp.connected ? 'green' : 'red');
+    document.getElementById('hp-name').textContent = d.printers.hp.name;
+    document.getElementById('hp-detail').textContent = d.printers.hp.url;
+    document.getElementById('hw-dot').className = 'dot ' + (d.printers.honeywell.connected ? 'green' : 'red');
+    document.getElementById('hw-detail').textContent = d.printers.honeywell.devicePath;
+    document.getElementById('pending').textContent = d.queue.pending;
+    document.getElementById('processing').textContent = d.queue.processing;
+    document.getElementById('completed').textContent = d.queue.completed;
+    document.getElementById('failed').textContent = d.queue.failed;
+    const total = d.queue.pending + d.queue.processing + d.queue.completed + d.queue.failed;
+    const done = d.queue.completed + d.queue.failed;
+    if (d.queue.pending + d.queue.processing > 5) {
+      document.getElementById('bulk-progress').style.display = 'block';
+      document.getElementById('bulk-text').textContent = done + ' / ' + total;
+      document.getElementById('bulk-bar').style.width = (total ? (done/total*100) : 0) + '%';
+    } else {
+      document.getElementById('bulk-progress').style.display = 'none';
+    }
+  } catch {}
+}
+
+async function fetchJobs() {
+  try {
+    const r = await fetch('/jobs?limit=100');
+    const d = await r.json();
+    allJobs = d.jobs || [];
+    filterJobs();
+  } catch {}
+}
+
+function filterJobs() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const filtered = q ? allJobs.filter(j => j.attendeeName.toLowerCase().includes(q)) : allJobs;
+  const tbody = document.getElementById('jobs');
+  tbody.innerHTML = filtered.map(j => `<tr>
+    <td>${esc(j.attendeeName)}</td>
+    <td>${j.printerType}</td>
+    <td><span class="status ${j.status}">${j.status}</span>${j.error ? '<br><small style="color:#ef4444">'+esc(j.error)+'</small>' : ''}</td>
+    <td>${new Date(j.createdAt).toLocaleTimeString()}</td>
+    <td>${j.status === 'FAILED' ? '<button onclick="retry(\''+j.jobId+'\')">Retry</button> ' : ''}<button class="danger" onclick="deleteJob(\'${j.jobId}\')">Del</button></td>
+  </tr>`).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function retry(jobId) {
+  await fetch('/jobs/' + jobId + '/retry', { method: 'POST' });
+  refresh();
+}
+
+async function deleteJob(jobId) {
+  if (!confirm('Are you sure you want to delete this job?')) return;
+  await fetch('/jobs/' + jobId, { method: 'DELETE' });
+  refresh();
+}
+
+async function clearCompleted() {
+  if (!confirm('Clear all completed jobs?')) return;
+  await fetch('/jobs/clear', { method: 'DELETE' });
+  refresh();
+}
+
+async function testPrint() {
+  const printer = document.getElementById('printer-select').value;
+  await fetch('/print/badge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jobId: 'test-' + Date.now(),
+      attendeeName: 'Test Badge',
+      qrCodeValue: 'TEST-QR-' + Date.now(),
+      printerType: printer,
+      template: { badgeWidthMm: 96, badgeHeightMm: 60, backgroundImageUrl: null, qrCodeTop: 10, qrCodeLeft: 5, qrCodeWidth: 20, nameTop: 35, nameLeft: 25, textColor: '#000000', nameCase: 'TITLE', showSerialNumber: false }
+    })
+  });
+  refresh();
+}
+
+function refresh() { fetchHealth(); fetchJobs(); }
+setInterval(refresh, 2000);
+refresh();
+</script>
+</body>
+</html>
