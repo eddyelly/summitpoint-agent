@@ -20,6 +20,7 @@ export interface PrintJob {
   qrCodeValue: string;
   printerType: 'HP' | 'HONEYWELL';
   serialNumber?: string;
+  organization?: string;
   template: PrintTemplate;
   priority?: number;
 }
@@ -30,6 +31,7 @@ export interface SinglePrintRequest {
   qrCodeValue: string;
   printerType: 'HP' | 'HONEYWELL';
   serialNumber?: string;
+  organization?: string;
   template: PrintTemplate;
 }
 
@@ -39,6 +41,7 @@ export interface BulkPrintRequest {
     attendeeName: string;
     qrCodeValue: string;
     serialNumber?: string;
+    organization?: string;
   }>;
   printerType: 'HP' | 'HONEYWELL';
   template: PrintTemplate;

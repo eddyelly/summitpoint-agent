@@ -102,6 +102,7 @@ export class QueueService {
         attendeeName: job.attendeeName,
         qrCodeValue: job.qrCodeValue,
         serialNumber: job.serialNumber,
+        organization: job.organization,
         template: job.template,
       });
       result = await this.honeywellPrinter.print(zpl);
