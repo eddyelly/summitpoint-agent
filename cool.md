@@ -1,10 +1,1 @@
-PORT=3001
-API_KEY=bca790a3431ccb26f611c7d933dd3545103c69b6c98fb1a209ff78fc6d0154de
-CLOUD_API_URL=https://summitpoint-backend-production.up.railway.app
-CLOUD_API_KEY=bca790a3431ccb26f611c7d933dd3545103c69b6c98fb1a209ff78fc6d0154de
-HP_PRINTER_URL=http://192.168.1.50:631/ipp/printer
-HP_PRINTER_NAME=HP_Color_LaserJet
-HONEYWELL_DEVICE_PATH=Honeywell_PC310T
-QUEUE_CONCURRENCY=2
-TEMPLATE_CACHE_DIR=./data/templates
-SQLITE_PATH=./data/print-agent.db
+sleep 3 && curl -s http://192.168.1.152:3001/jobs/cso-badge-edward-004 -H "x-api-key: bca790a3431ccb26f611c7d933dd3545103c69b6c98fb1a209ff78fc6d0154de" 2>&1 | python3 -m json.tool
