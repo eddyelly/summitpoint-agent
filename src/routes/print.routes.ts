@@ -5,7 +5,7 @@ import type { SinglePrintRequest, BulkPrintRequest } from '../types/index';
 export function printRoutes(queue: QueueService): Router {
   const router = Router();
 
-  // Single badge print (gate registration — high priority)
+  // Single badge print (gate registration - high priority)
   router.post('/print/badge', async (req, res) => {
     try {
       const body = req.body as SinglePrintRequest;

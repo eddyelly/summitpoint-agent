@@ -122,7 +122,7 @@ export class QueueService {
     const job = this.db.getJob(jobId);
     if (!job || job.status !== 'FAILED') return false;
     this.db.updateJobStatus(jobId, 'QUEUED');
-    // Re-queue — note: we don't have the full template data in SQLite, so
+    // Re-queue - note: we don't have the full template data in SQLite, so
     // the cloud should re-send the job via POST /print/badge for retries
     return true;
   }

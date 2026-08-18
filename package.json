@@ -11,7 +11,7 @@
   "keywords": [],
   "author": "SummitPoint",
   "license": "ISC",
-  "description": "SummitPoint Print Agent — local badge printing service",
+  "description": "SummitPoint Print Agent - local badge printing service",
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
     "@sealsystems/ipp": "^2.11.0",

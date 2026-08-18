@@ -36,7 +36,7 @@ export class HpPrinterService {
   }
 
   async checkStatus(): Promise<boolean> {
-    // Quick TCP check first — avoids IPP hanging on unreachable printers
+    // Quick TCP check first - avoids IPP hanging on unreachable printers
     try {
       const url = new URL(this.printerUrl);
       const net = await import('net');

@@ -26,7 +26,7 @@ export class WebhookService {
         timeout: 5000,
       });
     } catch {
-      // Cloud unreachable — queue for retry
+      // Cloud unreachable - queue for retry
       console.warn(`Webhook failed for job ${jobId}, queuing for retry`);
       this.db.savePendingWebhook(jobId, status, errorMessage);
     }

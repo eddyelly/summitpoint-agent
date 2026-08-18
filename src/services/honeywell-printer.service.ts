@@ -44,7 +44,7 @@ export class HoneywellPrinterService {
       fs.closeSync(fd);
       return { success: true };
     } catch (err: any) {
-      // Device write failed — try CUPS fallback
+      // Device write failed - try CUPS fallback
       console.warn(`Direct USB write failed: ${err.message}, trying CUPS...`);
       return this.printCups(zplCommands);
     }
