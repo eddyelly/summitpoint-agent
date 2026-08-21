@@ -6,6 +6,7 @@ import { config } from './config';
 import { DbService } from './services/db.service';
 import { HpPrinterService } from './services/hp-printer.service';
 import { HoneywellPrinterService } from './services/honeywell-printer.service';
+import { warmPrinterCache } from './services/windows-raw-print';
 import { WebhookService } from './services/webhook.service';
 import { QueueService } from './services/queue.service';
 import { printRoutes } from './routes/print.routes';
@@ -54,6 +55,12 @@ const db = new DbService(config.sqlitePath);
 const hpPrinter = new HpPrinterService(config.hpPrinterUrl);
 const honeywellPrinter = new HoneywellPrinterService(config.honeywellDevicePath || undefined);
 const webhook = new WebhookService(config.cloudApiUrl, config.cloudApiKey, db);
+
+// Populate the Windows printer list once at boot. `/health` races the
+// Honeywell status check against a one-second timeout, and a cold PowerShell
+// spawn loses that race - so without this the first health poll would report
+// a healthy printer as disconnected. No-op off Windows.
+warmPrinterCache();
 const queue = new QueueService(hpPrinter, honeywellPrinter, webhook, db);
 
 // ─── Flush pending webhooks every 30 seconds ───────────────────

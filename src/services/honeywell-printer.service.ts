@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import { execSync } from 'child_process';
 import * as os from 'os';
 import * as path from 'path';
+import { printRaw, printerExists, listPrinters } from './windows-raw-print';
 
 export class HoneywellPrinterService {
   private printerName: string;
@@ -68,20 +69,52 @@ export class HoneywellPrinterService {
     }
   }
 
+  /**
+   * Sends ZPL through the Windows print spooler as RAW.
+   *
+   * This used to be `copy /b file \\localhost\<name>`, which required the
+   * printer to be SHARED and addressed by its share name - not the printer
+   * name the agent actually holds. The two differ by default, and a name like
+   * "Honeywell PC310T (300 dpi) - DP" cannot be a share name at all, which is
+   * why each venue PC needed its share renamed by hand before printing worked.
+   * The spooler needs no sharing and takes the printer's real name.
+   */
   private printWindows(zplCommands: string): { success: boolean; error?: string } {
+    const tmpFile = path.join(process.env.TEMP || 'C:\\Temp', `badge_${Date.now()}.zpl`);
     try {
-      const tmpFile = path.join(process.env.TEMP || 'C:\\Temp', `badge_${Date.now()}.zpl`);
       fs.writeFileSync(tmpFile, zplCommands);
-      execSync(`copy /b "${tmpFile}" "\\\\localhost\\${this.printerName}"`, { stdio: 'ignore' });
-      fs.unlinkSync(tmpFile);
-      return { success: true };
+      const result = printRaw(this.printerName, tmpFile);
+      if (result.success) return result;
+
+      // A wrong printer name is the likeliest cause and the hardest to guess
+      // at remotely, so the error carries the names that WOULD have worked.
+      const available = listPrinters(10000, true);
+      if (available.length > 0 && !available.includes(this.printerName)) {
+        return {
+          success: false,
+          error:
+            `${result.error} - no printer named "${this.printerName}". ` +
+            `Windows knows: ${available.map((n) => `"${n}"`).join(', ')}`,
+        };
+      }
+      return result;
     } catch (err: any) {
       return { success: false, error: `Windows print error: ${err.message}` };
+    } finally {
+      // Runs on every path. The old code deleted the temp file only on
+      // success, so every failed badge leaked one into TEMP forever.
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch {
+        /* already gone, or never written - nothing to recover */
+      }
     }
   }
 
   async checkStatus(): Promise<boolean> {
-    if (process.platform === 'win32') return true;
+    // Was a hardcoded `true`, so a missing or renamed printer looked healthy
+    // right up until a badge failed to print. The spooler can answer properly.
+    if (process.platform === 'win32') return printerExists(this.printerName);
 
     // Check direct device path first
     if (this.devicePath && fs.existsSync(this.devicePath)) return true;

@@ -3,6 +3,7 @@ import type { QueueService } from '../services/queue.service';
 import type { HpPrinterService } from '../services/hp-printer.service';
 import type { HoneywellPrinterService } from '../services/honeywell-printer.service';
 import { config } from '../config';
+import { listPrinters } from '../services/windows-raw-print';
 
 const startTime = Date.now();
 
@@ -35,6 +36,14 @@ export function statusRoutes(
               connected: honeywellConnected,
               type: 'USB',
               devicePath: config.honeywellDevicePath || 'auto-detect',
+              // On Windows, HONEYWELL_DEVICE_PATH holds the PRINTER NAME, and
+              // it must match one of these exactly. Surfacing the list here
+              // means a name mismatch is diagnosable from the dashboard
+              // instead of by remoting into the machine. Served from a cache,
+              // so this costs nothing per poll.
+              ...(process.platform === 'win32'
+                ? { availablePrinters: listPrinters() }
+                : {}),
             },
           },
           queue: stats,
