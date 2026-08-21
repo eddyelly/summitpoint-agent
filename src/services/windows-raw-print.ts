@@ -205,8 +205,16 @@ export function listPrinters(timeout = 10000, force = false): string[] {
     return printerCache.names;
   }
   try {
+    // `Get-Printer` comes from the PrintManagement module, which does not
+    // exist before Windows 8 / Server 2012. Falling back to WMI keeps older
+    // venue machines working rather than reporting no printers at all.
     const out = runPowerShell(
-      ['-Command', 'Get-Printer | Select-Object -ExpandProperty Name'],
+      [
+        '-Command',
+        'if (Get-Command Get-Printer -ErrorAction SilentlyContinue) { ' +
+          'Get-Printer | Select-Object -ExpandProperty Name } else { ' +
+          'Get-WmiObject -Class Win32_Printer | Select-Object -ExpandProperty Name }',
+      ],
       timeout,
     );
     const names = out
