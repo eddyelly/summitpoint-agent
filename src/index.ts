@@ -7,6 +7,7 @@ import { DbService } from './services/db.service';
 import { HpPrinterService } from './services/hp-printer.service';
 import { HoneywellPrinterService } from './services/honeywell-printer.service';
 import { warmPrinterCache } from './services/windows-raw-print';
+import { JobPoller } from './services/job-poller';
 import { WebhookService } from './services/webhook.service';
 import { QueueService } from './services/queue.service';
 import { printRoutes } from './routes/print.routes';
@@ -91,6 +92,17 @@ const webhook = new WebhookService(config.cloudApiUrl, config.cloudApiKey, db);
 // a healthy printer as disconnected. No-op off Windows.
 warmPrinterCache();
 const queue = new QueueService(hpPrinter, honeywellPrinter, webhook, db);
+
+// Pull jobs from the cloud rather than waiting to be pushed to. A registration
+// desk sits behind NAT on venue wifi, so the cloud cannot open a connection to
+// it without a tunnel - but the agent can always reach out.
+const jobPoller = new JobPoller(
+  config.cloudApiUrl,
+  config.cloudApiKey,
+  queue,
+  config.pollIntervalMs,
+);
+jobPoller.start();
 
 // ─── Flush pending webhooks every 30 seconds ───────────────────
 setInterval(() => webhook.flushPendingWebhooks(), 30000);
