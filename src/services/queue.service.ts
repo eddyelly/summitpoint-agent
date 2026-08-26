@@ -2,6 +2,7 @@ import BetterQueue from 'better-queue';
 import SqliteStore from 'better-queue-sqlite';
 import { generateBadgePdf } from './badge-generator';
 import { generateZplLabel } from './zpl-generator';
+import { generateTsplLabel } from './tspl-generator';
 import { HpPrinterService } from './hp-printer.service';
 import { HoneywellPrinterService } from './honeywell-printer.service';
 import { WebhookService } from './webhook.service';
@@ -98,14 +99,28 @@ export class QueueService {
       });
       result = await this.hpPrinter.print(pdfBuffer, `badge-${job.attendeeName}`);
     } else {
-      const zpl = generateZplLabel({
-        attendeeName: job.attendeeName,
-        qrCodeValue: job.qrCodeValue,
-        serialNumber: job.serialNumber,
-        organization: job.organization,
-        template: job.template,
-      });
-      result = await this.honeywellPrinter.print(zpl);
+      // Same badge, different dialect. Which one this desk's printer speaks is
+      // agent configuration, not something the backend knows or should.
+      const payload =
+        config.labelLanguage === 'TSPL'
+          ? generateTsplLabel({
+              attendeeName: job.attendeeName,
+              qrCodeValue: job.qrCodeValue,
+              serialNumber: job.serialNumber,
+              organization: job.organization,
+              template: job.template,
+              labelWidthMm: config.labelWidthMm,
+              labelHeightMm: config.labelHeightMm,
+              gapMm: config.labelGapMm,
+            })
+          : generateZplLabel({
+              attendeeName: job.attendeeName,
+              qrCodeValue: job.qrCodeValue,
+              serialNumber: job.serialNumber,
+              organization: job.organization,
+              template: job.template,
+            });
+      result = await this.honeywellPrinter.print(payload);
     }
 
     if (result.success) {
