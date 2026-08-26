@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import type { PrintTemplate } from '../types/index';
 
 interface TsplBadgeData {
@@ -61,12 +62,14 @@ export function generateTsplLabel(data: TsplBadgeData): string {
   // lanyard at arm's length, so it is sized off the label rather than left
   // at a fixed guess - clamped because TSPL accepts 1..10.
   const targetQrDots = Math.round(labelWidth * 0.45);
-  // The printer chooses the real QR version from the data, so the module
-  // count is an estimate. Assume the LARGER end of what a badge code
-  // produces: guessing low would make the code bigger than planned and push
-  // it off the label, which is the one failure nobody notices until a stack
-  // of badges is already printed.
-  const qrModules = 33;
+  // The QR's REAL module count for this exact payload, not an estimate.
+  //
+  // The first version guessed 33 and the truth for a badge code is 21. It
+  // therefore reserved 13mm of space the code never occupied, and - because
+  // the block is centred on that height - printed everything too high with a
+  // dead band underneath. Encoding the value costs nothing and the printer
+  // and this code then agree on the size.
+  const qrModules = qrModuleCount(data.qrCodeValue);
   let qrCell = clamp(Math.round(targetQrDots / qrModules), 1, 10);
   let qrSize = qrCell * qrModules;
 
@@ -148,7 +151,13 @@ export function generateTsplLabel(data: TsplBadgeData): string {
     );
   }
 
-  lines.push('PRINT 1,1');
+  // `PRINT 1`, not `PRINT 1,1`.
+  //
+  // TSPL documents PRINT m,n as m sets of n copies, so 1,1 should be a single
+  // label - but this firmware produced TWO for it, verified against the
+  // agent's own job log showing exactly one payload sent. The single-argument
+  // form is what the printer's own manual test uses, and it prints one.
+  lines.push('PRINT 1');
 
   // CRLF, not LF. TSPL firmware expects it, and the working manual test used
   // it too - a payload separated by bare newlines can be swallowed silently.
@@ -161,6 +170,21 @@ export function generateTsplLabel(data: TsplBadgeData): string {
  */
 function escapeTspl(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * How many modules across this payload's QR really is.
+ *
+ * Falls back to a mid-range guess if encoding fails: a slightly mispositioned
+ * code still scans, whereas refusing to build the label leaves someone at the
+ * desk with no badge at all.
+ */
+function qrModuleCount(value: string): number {
+  try {
+    return QRCode.create(value, { errorCorrectionLevel: 'M' }).modules.size;
+  } catch {
+    return 25;
+  }
 }
 
 function clamp(n: number, lo: number, hi: number): number {
