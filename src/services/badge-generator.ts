@@ -3,7 +3,6 @@ import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 import type { PrintTemplate } from '../types/index';
 import { getCachedTemplate } from './template-cache';
-import { drawBackgroundCover } from './badge-background';
 
 interface BadgeData {
   attendeeName: string;
@@ -33,9 +32,7 @@ export async function generateBadgePdf(data: BadgeData): Promise<Buffer> {
       const bgImage = isJpg
         ? await pdfDoc.embedJpg(bgBytes)
         : await pdfDoc.embedPng(bgBytes);
-      // Cover-fit, not stretched: artwork whose proportions differ from the
-      // badge would otherwise print distorted.
-      drawBackgroundCover(page, bgImage, { x: 0, y: 0, width: widthPt, height: heightPt });
+      page.drawImage(bgImage, { x: 0, y: 0, width: widthPt, height: heightPt });
     } catch (err: any) {
       console.error('Failed to load badge background:', err.message);
     }
